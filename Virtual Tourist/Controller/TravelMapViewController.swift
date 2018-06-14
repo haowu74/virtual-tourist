@@ -8,6 +8,7 @@
 
 import UIKit
 import MapKit
+import CoreData
 
 class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationManagerDelegate {
 
@@ -23,6 +24,10 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
     
     var locationManager: CLLocationManager!
     
+    var dataController:DataController!
+    
+    var fetchedResultsController:NSFetchedResultsController<Pin>!
+    
     override func viewDidLoad() {
         super.viewDidLoad()
         if (CLLocationManager.locationServicesEnabled())
@@ -36,10 +41,32 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         }
  
         let singleTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.foundTap(_:)))
+        
+        let lat = UserDefaults.standard.object(forKey: "lat") as? CLLocationDegrees ?? nil
+        let lon = UserDefaults.standard.object(forKey: "lon") as? CLLocationDegrees ?? nil
+        let span_lat = UserDefaults.standard.object(forKey: "span_lat") as? CLLocationDegrees ?? nil
+        let span_lon = UserDefaults.standard.object(forKey: "span_lon") as? CLLocationDegrees ?? nil
+        var center: CLLocationCoordinate2D? = nil
+        var span: MKCoordinateSpan? = nil
+        var region: MKCoordinateRegion? = nil
+        if let lat = lat, let lon = lon {
+            center = CLLocationCoordinate2D(latitude: lat, longitude: lon)
+        }
+        if let span_lat = span_lat, let span_lon = span_lon {
+            span = MKCoordinateSpan(latitudeDelta: span_lat, longitudeDelta: span_lon)
+        }
+        if let center = center, let span = span {
+            region = MKCoordinateRegion(center: center, span: span)
+        }
+        
         singleTapRecognizer.delegate = self
         mapView.addGestureRecognizer(singleTapRecognizer)
         
         mapView.delegate = self
+        if let r = region {
+            mapView.setRegion(r, animated: true)
+        }
+        
         // Do any additional setup after loading the view.
     }
 
@@ -82,6 +109,26 @@ extension TravelMapViewController {
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
         print("Annotation Selected")
     }
+    
+    func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
+        print("Update")
+    }
+    
+    func mapViewDidFinishLoadingMap(_ mapView: MKMapView) {
+        print("finish loading")
+    }
+    
+    func mapView(_ mapView: MKMapView, regionDidChangeAnimated animated: Bool) {
+        let region = mapView.region
+        let lat = region.center.latitude
+        let lon = region.center.longitude
+        let span_lat = region.span.latitudeDelta
+        let span_lon = region.span.longitudeDelta
+        UserDefaults.standard.setValue(lat, forKey: "lat")
+        UserDefaults.standard.setValue(lon, forKey: "lon")
+        UserDefaults.standard.setValue(span_lat, forKey: "span_lat")
+        UserDefaults.standard.setValue(span_lon, forKey: "span_lon")
+    }
 }
 
 extension TravelMapViewController: UIGestureRecognizerDelegate {
@@ -89,3 +136,6 @@ extension TravelMapViewController: UIGestureRecognizerDelegate {
         return !(touch.view is MKPinAnnotationView)
     }
 }
+
+
+
