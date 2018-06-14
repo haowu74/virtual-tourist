@@ -10,16 +10,20 @@ import UIKit
 import MapKit
 import CoreData
 
-class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationManagerDelegate {
+class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationManagerDelegate, NSFetchedResultsControllerDelegate {
 
     @IBOutlet weak var mapView: MKMapView!
     
-    @objc func foundTap(_ sender: UITapGestureRecognizer) {
+    @objc func addAnnotation(_ sender: UILongPressGestureRecognizer) {
         let point = sender.location(in: mapView)
         let tapPoint = mapView.convert(point, toCoordinateFrom: mapView)
         let annotation = MKPointAnnotation()
         annotation.coordinate = tapPoint
         mapView.addAnnotation(annotation)
+        let pin = Pin(context: dataController.viewContext)
+        pin.latitude = tapPoint.latitude
+        pin.longitude = tapPoint.longitude
+        try? dataController.viewContext.save()
     }
     
     var locationManager: CLLocationManager!
@@ -27,6 +31,20 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
     var dataController:DataController!
     
     var fetchedResultsController:NSFetchedResultsController<Pin>!
+    
+    fileprivate func setupFetchedResultsController() {
+        let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
+        //let sortDescriptor = NSSortDescriptor(key: "creationDate", ascending: false)
+        fetchRequest.sortDescriptors = []
+        
+        fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: "pins")
+        fetchedResultsController.delegate = self
+        do {
+            try fetchedResultsController.performFetch()
+        } catch {
+            fatalError("The fetch could not be performed: \(error.localizedDescription)")
+        }
+    }
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -40,7 +58,8 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
             locationManager.startUpdatingLocation()
         }
  
-        let singleTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.foundTap(_:)))
+        //let singleTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.foundTap(_:)))
+        let longTagRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.addAnnotation(_:)))
         
         let lat = UserDefaults.standard.object(forKey: "lat") as? CLLocationDegrees ?? nil
         let lon = UserDefaults.standard.object(forKey: "lon") as? CLLocationDegrees ?? nil
@@ -59,13 +78,23 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
             region = MKCoordinateRegion(center: center, span: span)
         }
         
-        singleTapRecognizer.delegate = self
-        mapView.addGestureRecognizer(singleTapRecognizer)
+        longTagRecognizer.delegate = self
+        mapView.addGestureRecognizer(longTagRecognizer)
         
         mapView.delegate = self
         if let r = region {
             mapView.setRegion(r, animated: true)
         }
+        
+        setupFetchedResultsController()
+        
+        for pin in fetchedResultsController.fetchedObjects! {
+            let annotation = MKPointAnnotation()
+            annotation.coordinate.latitude = pin.latitude
+            annotation.coordinate.longitude = pin.longitude
+            mapView.addAnnotation(annotation)
+        }
+        
         
         // Do any additional setup after loading the view.
     }
@@ -75,8 +104,15 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         // Dispose of any resources that can be recreated.
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        setupFetchedResultsController()
+    }
 
-
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        fetchedResultsController = nil
+    }
     // MARK: - Navigation
 
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
@@ -135,6 +171,8 @@ extension TravelMapViewController: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         return !(touch.view is MKPinAnnotationView)
     }
+    
+
 }
 
 
