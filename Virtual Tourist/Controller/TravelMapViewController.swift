@@ -9,21 +9,38 @@
 import UIKit
 import MapKit
 import CoreData
+import Foundation
 
 class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationManagerDelegate, NSFetchedResultsControllerDelegate {
 
     @IBOutlet weak var mapView: MKMapView!
     
     @objc func addAnnotation(_ sender: UILongPressGestureRecognizer) {
-        let point = sender.location(in: mapView)
-        let tapPoint = mapView.convert(point, toCoordinateFrom: mapView)
-        let annotation = MKPointAnnotation()
-        annotation.coordinate = tapPoint
-        mapView.addAnnotation(annotation)
+        if sender.state == UIGestureRecognizerState.began {
+            let point = sender.location(in: mapView)
+            let tapPoint = mapView.convert(point, toCoordinateFrom: mapView)
+            let annotation = MKPointAnnotation()
+            annotation.coordinate = tapPoint
+            mapView.addAnnotation(annotation)
+            addPin(tapPoint.latitude, tapPoint.longitude)
+        }
+
+    }
+    
+    func addPin(_ lat: Double, _ lon: Double) {
         let pin = Pin(context: dataController.viewContext)
-        pin.latitude = tapPoint.latitude
-        pin.longitude = tapPoint.longitude
-        try? dataController.viewContext.save()
+        pin.latitude = lat
+        pin.longitude = lon
+        var i = 0
+        while i < 10000 {
+            i += 1
+        }
+        do {
+            try dataController.viewContext.save()
+        } catch {
+            print("ee")
+        }
+
     }
     
     var locationManager: CLLocationManager!
@@ -34,10 +51,10 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
     
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
-        //let sortDescriptor = NSSortDescriptor(key: "creationDate", ascending: false)
-        fetchRequest.sortDescriptors = []
+        let sortDescriptor = NSSortDescriptor(key: "latitude", ascending: false)
+        fetchRequest.sortDescriptors = [sortDescriptor]
         
-        fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: "pins")
+        fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
         fetchedResultsController.delegate = self
         do {
             try fetchedResultsController.performFetch()
@@ -87,15 +104,16 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         }
         
         setupFetchedResultsController()
+        var annotations: [MKPointAnnotation] = []
         
         for pin in fetchedResultsController.fetchedObjects! {
             let annotation = MKPointAnnotation()
             annotation.coordinate.latitude = pin.latitude
             annotation.coordinate.longitude = pin.longitude
-            mapView.addAnnotation(annotation)
+            annotations.append(annotation)
         }
         
-        
+        mapView.addAnnotations(annotations)
         // Do any additional setup after loading the view.
     }
 
