@@ -22,15 +22,15 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
             let annotation = MKPointAnnotation()
             annotation.coordinate = tapPoint
             mapView.addAnnotation(annotation)
-            addPin(tapPoint.latitude, tapPoint.longitude)
+            addPin(Decimal(tapPoint.latitude), Decimal(tapPoint.longitude))
         }
 
     }
     
-    func addPin(_ lat: Double, _ lon: Double) {
+    func addPin(_ lat: Decimal, _ lon: Decimal) {
         let pin = Pin(context: dataController.viewContext)
-        pin.latitude = lat
-        pin.longitude = lon
+        pin.latitude = lat as NSDecimalNumber
+        pin.longitude = lon as NSDecimalNumber
         var i = 0
         while i < 10000 {
             i += 1
@@ -46,18 +46,21 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
     var locationManager: CLLocationManager!
     
     var dataController:DataController!
+    var selectedLon: Decimal?
+    var selectedLat: Decimal?
     
-    var fetchedResultsController:NSFetchedResultsController<Pin>!
+    var pinsFetchedResultsController:NSFetchedResultsController<Pin>!
+    
     
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
         let sortDescriptor = NSSortDescriptor(key: "latitude", ascending: false)
         fetchRequest.sortDescriptors = [sortDescriptor]
         
-        fetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
-        fetchedResultsController.delegate = self
+        pinsFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
+        pinsFetchedResultsController.delegate = self
         do {
-            try fetchedResultsController.performFetch()
+            try pinsFetchedResultsController.performFetch()
         } catch {
             fatalError("The fetch could not be performed: \(error.localizedDescription)")
         }
@@ -106,10 +109,10 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         setupFetchedResultsController()
         var annotations: [MKPointAnnotation] = []
         
-        for pin in fetchedResultsController.fetchedObjects! {
+        for pin in pinsFetchedResultsController.fetchedObjects! {
             let annotation = MKPointAnnotation()
-            annotation.coordinate.latitude = pin.latitude
-            annotation.coordinate.longitude = pin.longitude
+            annotation.coordinate.latitude = pin.latitude as! CLLocationDegrees
+            annotation.coordinate.longitude = pin.longitude as! CLLocationDegrees
             annotations.append(annotation)
         }
         
@@ -129,13 +132,19 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
 
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
-        fetchedResultsController = nil
+        pinsFetchedResultsController = nil
     }
     // MARK: - Navigation
 
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         // Get the new view controller using segue.destinationViewController.
         // Pass the selected object to the new view controller.
+        if segue.identifier == "ToPhotoAlbumViewController" {
+            let photoAlbumViewController = segue.destination as! PhotoAlbumViewController
+            photoAlbumViewController.lon = selectedLon
+            photoAlbumViewController.lat = selectedLat
+            photoAlbumViewController.dataController = dataController
+        }
     }
 
 }
@@ -161,7 +170,10 @@ extension TravelMapViewController {
     }
     
     func mapView(_ mapView: MKMapView, didSelect view: MKAnnotationView) {
-        print("Annotation Selected")
+        selectedLat = Decimal(view.annotation?.coordinate.latitude ?? 0)
+        selectedLon = Decimal(view.annotation?.coordinate.longitude ?? 0)
+        performSegue(withIdentifier: "ToPhotoAlbumViewController", sender: nil)
+        mapView.deselectAnnotation(view.annotation, animated: false)
     }
     
     func mapView(_ mapView: MKMapView, didUpdate userLocation: MKUserLocation) {
@@ -183,6 +195,8 @@ extension TravelMapViewController {
         UserDefaults.standard.setValue(span_lat, forKey: "span_lat")
         UserDefaults.standard.setValue(span_lon, forKey: "span_lon")
     }
+    
+
 }
 
 extension TravelMapViewController: UIGestureRecognizerDelegate {

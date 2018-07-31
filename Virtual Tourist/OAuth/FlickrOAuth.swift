@@ -10,18 +10,20 @@ import Foundation
 
 final class FlickrOAuth {
     let ApiKey = "d385ff977003a2f2586eee316d1391c4"
-    //let ApiKey = "768fe946d252b119746fda82e1599980"
     let Secret = "1c15c8c8dbbd56a5"
-    //let Secret = "1a3c208e172d3edc"
     let Url = "https://www.flickr.com/services/oauth/request_token"
     
     var OAuthInfo: [String: String]
+    var ReqToGetToken: String?
+    var Token: String?
+    var TokenSecret: String?
     
     private init() {
         OAuthInfo = [
             "oauth_signature_method": "HMAC-SHA1",
             "oauth_version": "1.0",
-            "oauth_callback": "http%3A%2F%2Fwww.wackylabs.net%2Foauth%2Ftest",
+            //"oauth_callback": "http%3A%2F%2Fwww.wackylabs.net%2Foauth%2Ftest",
+            "oauth_callback": "",
             "oauth_signature": "",
             "oauth_nonce": "C2F26CD5C075BA9050AD8EE90644CF29",
             "oauth_timestamp": "",
@@ -31,14 +33,13 @@ final class FlickrOAuth {
     
     static let shared = FlickrOAuth()
     
-    func CreateBaseString() -> String {
+    func CreateOauthString() {
         let timeStamp = Int64(Date.timeIntervalSinceReferenceDate) //1316657628
         let timeStampHash = md5(String(timeStamp)).uppercased()
         OAuthInfo["oauth_nonce"] = timeStampHash
         OAuthInfo["oauth_timestamp"] = String(timeStamp)
         let hashKey = "\(Secret)&"
         let allowedSet = CharacterSet.alphanumerics.union([".", "_", "~", "-"])
-        //let simpleAllowedSet = CharacterSet.alphanumerics.union([".", "_", "~", "-", "=", "&"])
         let simpleAllowedSet = CharacterSet.alphanumerics.union([".", "_", "~", "-", "=", "&", "%"])
 
         let part1 = "GET"
@@ -48,17 +49,15 @@ final class FlickrOAuth {
         let escapedPart1 = part1.addingPercentEncoding(withAllowedCharacters: allowedSet)!
         let escapedPart2 = part2.addingPercentEncoding(withAllowedCharacters: allowedSet)!
         let escapedPart3 = part3.addingPercentEncoding(withAllowedCharacters: allowedSet)!
-        //let simpleEscapedPart3 = part3.addingPercentEncoding(withAllowedCharacters: simpleAllowedSet)!
         let simpleEscapedPart3 = part3.addingPercentEncoding(withAllowedCharacters: simpleAllowedSet)!
         let escapedString = "\(escapedPart1)&\(escapedPart2)&\(escapedPart3)"
         
         OAuthInfo["oauth_signature"] = escapedString.hmac(algorithm: .SHA1, key: hashKey)
-        //OAuthInfo["oauth_signature"] = escapedString.sha1()
 
         let escapedSignature = OAuthInfo["oauth_signature"]!.addingPercentEncoding(withAllowedCharacters: allowedSet)!
-        let oathString  = "\(part2)?\(simpleEscapedPart3)&oauth_signature=\(escapedSignature)"
+        let oauthString  = "\(part2)?\(simpleEscapedPart3)&oauth_signature=\(escapedSignature)"
         
-        return oathString
+        ReqToGetToken = oauthString
     }
     
     func md5(_ string: String) -> String {
@@ -74,6 +73,45 @@ final class FlickrOAuth {
         }
         return hexString
     }
+    
+    func GetTokenRequest(_ completionHandler: @escaping (_ token: String?, _ secret: String?, _ error: Error?, _ other: Int) -> Void) {
+        var request = URLRequest(url: URL(string: ReqToGetToken!)!)
+        request.httpMethod = "GET"
+        request.addValue("application/json", forHTTPHeaderField: "Accept")
+        request.addValue("application/json", forHTTPHeaderField: "Content-Type")
+        let session = URLSession.shared
+        let task = session.dataTask(with: request) { data, response, error in
+            if error != nil {
+                completionHandler(nil, nil, error, 0)
+            }
+            let str = String.init(data: data!, encoding: .utf8)
+            let pairs = str?.split(separator: "&")
+            var parsedResult = [String: String]()
+            for pair in pairs! {
+                let key: String = String(pair.split(separator: "=")[0])
+                let value: String = String(pair.split(separator: "=")[1])
+                parsedResult[key] = value
+            }
+            if let token = parsedResult["oauth_token"], let secret = parsedResult["oauth_token_secret"] {
+                completionHandler(token, secret, nil, 0)
+            }
+        }
+        task.resume()
+    }
+    
+    func GetToken() -> Void {
+        GetTokenRequest{ (token, secret, error, other) in
+            if error != nil {
+                return
+            } else if other == -1 {
+                return
+            } else {
+                self.Token = token
+                self.TokenSecret = secret
+            }
+        }
+    }
+    
 }
 
 enum HMACAlgorithm {

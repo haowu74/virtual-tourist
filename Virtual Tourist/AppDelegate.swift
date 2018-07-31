@@ -21,10 +21,6 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
         let navigationController = window?.rootViewController as! UINavigationController
         let travelMapViewController = navigationController.topViewController as! TravelMapViewController
         travelMapViewController.dataController = dataController
-        
-        //FlickrOAuth
-        let flickrOAuthString = FlickrOAuth.shared.CreateBaseString()
-        print(flickrOAuthString)
         return true
     }
 

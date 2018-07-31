@@ -34,7 +34,7 @@
                     <navigationItem key="navigationItem" id="OvR-0O-aAf"/>
                     <connections>
                         <outlet property="mapView" destination="sfj-Zq-cOI" id="Vzm-Ia-Ejj"/>
-                        <segue destination="xIb-1n-dnS" kind="show" id="kU0-P2-b6D"/>
+                        <segue destination="xIb-1n-dnS" kind="show" identifier="ToPhotoAlbumViewController" id="kU0-P2-b6D"/>
                     </connections>
                 </viewController>
                 <placeholder placeholderIdentifier="IBFirstResponder" id="dkx-z0-nzr" sceneMemberID="firstResponder"/>
@@ -60,7 +60,7 @@
         <!--Photo Album View Controller-->
         <scene sceneID="tJ2-Ro-YHD">
             <objects>
-                <viewController id="xIb-1n-dnS" customClass="PhotoAlbumViewController" customModule="Virtual_Tourist" customModuleProvider="target" sceneMemberID="viewController">
+                <viewController storyboardIdentifier="PhotoAlbumViewController" id="xIb-1n-dnS" customClass="PhotoAlbumViewController" customModule="Virtual_Tourist" customModuleProvider="target" sceneMemberID="viewController">
                     <view key="view" contentMode="scaleToFill" id="2HI-hb-MPr">
                         <rect key="frame" x="0.0" y="0.0" width="375" height="667"/>
                         <autoresizingMask key="autoresizingMask" widthSizable="YES" heightSizable="YES"/>
@@ -75,25 +75,41 @@
                                 <rect key="frame" x="0.0" y="243" width="375" height="382"/>
                                 <color key="backgroundColor" white="1" alpha="1" colorSpace="custom" customColorSpace="genericGamma22GrayColorSpace"/>
                                 <collectionViewFlowLayout key="collectionViewLayout" minimumLineSpacing="10" minimumInteritemSpacing="10" id="DHd-Dm-h5v">
-                                    <size key="itemSize" width="50" height="50"/>
+                                    <size key="itemSize" width="129" height="113"/>
                                     <size key="headerReferenceSize" width="0.0" height="0.0"/>
                                     <size key="footerReferenceSize" width="0.0" height="0.0"/>
                                     <inset key="sectionInset" minX="0.0" minY="0.0" maxX="0.0" maxY="0.0"/>
                                 </collectionViewFlowLayout>
                                 <cells>
-                                    <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" id="KVi-df-IGo">
-                                        <rect key="frame" x="0.0" y="0.0" width="50" height="50"/>
+                                    <collectionViewCell opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" restorationIdentifier="PhotoCollectionViewCell" reuseIdentifier="PhotoAlbumViewCell" id="KVi-df-IGo" customClass="PhotoAlbumViewCell" customModule="Virtual_Tourist" customModuleProvider="target">
+                                        <rect key="frame" x="0.0" y="0.0" width="129" height="113"/>
                                         <autoresizingMask key="autoresizingMask" flexibleMaxX="YES" flexibleMaxY="YES"/>
                                         <view key="contentView" opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" insetsLayoutMarginsFromSafeArea="NO">
-                                            <rect key="frame" x="0.0" y="0.0" width="50" height="50"/>
+                                            <rect key="frame" x="0.0" y="0.0" width="129" height="113"/>
                                             <autoresizingMask key="autoresizingMask"/>
+                                            <subviews>
+                                                <imageView userInteractionEnabled="NO" contentMode="scaleToFill" horizontalHuggingPriority="251" verticalHuggingPriority="251" translatesAutoresizingMaskIntoConstraints="NO" id="8M8-Gr-CuU">
+                                                    <rect key="frame" x="0.0" y="0.0" width="129" height="113"/>
+                                                </imageView>
+                                            </subviews>
                                         </view>
+                                        <constraints>
+                                            <constraint firstItem="8M8-Gr-CuU" firstAttribute="leading" secondItem="KVi-df-IGo" secondAttribute="leading" id="8gx-Em-Hrm"/>
+                                            <constraint firstAttribute="trailing" secondItem="8M8-Gr-CuU" secondAttribute="trailing" id="DaE-Dk-XwF"/>
+                                            <constraint firstItem="8M8-Gr-CuU" firstAttribute="top" secondItem="KVi-df-IGo" secondAttribute="top" id="KRl-fT-8FM"/>
+                                            <constraint firstItem="8M8-Gr-CuU" firstAttribute="width" secondItem="KVi-df-IGo" secondAttribute="width" id="WUO-1w-wuI"/>
+                                            <constraint firstAttribute="bottom" secondItem="8M8-Gr-CuU" secondAttribute="bottom" id="tke-6R-o0B"/>
+                                            <constraint firstItem="8M8-Gr-CuU" firstAttribute="height" secondItem="KVi-df-IGo" secondAttribute="height" id="wtP-Ad-vel"/>
+                                        </constraints>
+                                        <connections>
+                                            <outlet property="photoInCell" destination="8M8-Gr-CuU" id="xjl-cy-57D"/>
+                                        </connections>
                                     </collectionViewCell>
                                 </cells>
                             </collectionView>
                             <button opaque="NO" contentMode="scaleToFill" contentHorizontalAlignment="center" contentVerticalAlignment="center" buttonType="roundedRect" lineBreakMode="middleTruncation" translatesAutoresizingMaskIntoConstraints="NO" id="NZG-LM-Zls">
                                 <rect key="frame" x="0.0" y="626" width="375" height="41"/>
-                                <state key="normal" title="Button"/>
+                                <state key="normal" title="New Collection"/>
                                 <connections>
                                     <action selector="NewCollection:" destination="xIb-1n-dnS" eventType="touchUpInside" id="OuR-Oq-djN"/>
                                 </connections>
