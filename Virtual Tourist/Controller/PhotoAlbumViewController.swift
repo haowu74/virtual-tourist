@@ -18,15 +18,22 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     @IBOutlet weak var albumView: UICollectionView!
     
     @IBAction func NewCollection(_ sender: Any) {
+        photoInfos.removeAll()
+        photoUrls.removeAll()
+        for i in 0..<images.count {
+            images[i] = nil
+        }
+        GetPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
     }
     
     var lat: Decimal?
     var lon: Decimal?
     var photoInfos: [PhotoInfo] = []
     var photoUrls: [URL] = []
+    var images = [UIImage?](repeating: nil, count: 21)
     
     let span = MKCoordinateSpanMake(0.5, 0.5)
-    let photoPerDisplay = 9
+    let photoPerDisplay = 21
     let photoGeoRadius = 20
     var photosFetchedResultsController:NSFetchedResultsController<Photo>!
     var dataController:DataController!
@@ -34,7 +41,9 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
 
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Photo> = Photo.fetchRequest()
-        let sortDescriptor = NSSortDescriptor(key: "latitude", ascending: false)
+        let predicate = NSPredicate(format: "latitude == %@ AND longitude == %@", lat! as NSDecimalNumber, lon! as NSDecimalNumber)
+        let sortDescriptor = NSSortDescriptor(key: "id", ascending: true)
+        fetchRequest.predicate = predicate
         fetchRequest.sortDescriptors = [sortDescriptor]
         
         photosFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
@@ -52,7 +61,18 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         // Do any additional setup after loading the view.
         setupFetchedResultsController()
         showMap()
-        GetPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
+        let count = photosFetchedResultsController.fetchedObjects!.filter{$0.image != nil}.count
+        if count > 0 {
+            for photo in photosFetchedResultsController.fetchedObjects! {
+                if let img = photo.image, let url = photo.photoUrl {
+                    images.append(UIImage(data: img))
+                    photoUrls.append(URL(string: url)!)
+                }
+            }
+        } else {
+            GetPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
+        }
+        
         albumView.delegate = self
         albumView.dataSource = self
     }
@@ -101,6 +121,10 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         let region = MKCoordinateRegionMake(cord, span)
         mapView.setCenter(cord, animated: true)
         mapView.setRegion(region, animated: true)
+        let annotation = MKPointAnnotation()
+        annotation.coordinate.longitude = Double(truncating: lon! as NSNumber)
+        annotation.coordinate.latitude = Double(truncating: lat! as NSNumber)
+        mapView.addAnnotation(annotation)
     }
     
     func getPhotoUrls() {
@@ -112,11 +136,11 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
                     
                 } else {
                     self.photoUrls.append(url!)
-                    performUIUpdatesOnMain {
-                        self.albumView.reloadData()
-                    }
                 }
             }
+        }
+        performUIUpdatesOnMain {
+            self.albumView.reloadData()
         }
     }
     
@@ -134,15 +158,37 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     */
     
     func savePhotos() {
-        let photo = Photo(context: dataController.viewContext)
-        photo.latitude = lat! as NSDecimalNumber
-        photo.longitude = lon! as NSDecimalNumber
-
+        let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
+        fetchRequest.predicate = NSPredicate(format: "latitude == %@ AND longitude == %@", lat! as NSDecimalNumber, lon! as NSDecimalNumber)
+        let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
         do {
-            try dataController.viewContext.save()
+            try dataController.viewContext.execute(deleteRequest)
         } catch {
-            print("ee")
+            // TODO: handle the error
         }
+        
+        for i in 0..<21 {
+            if images[i] == nil {
+                break
+            }
+            let photo = Photo(context: dataController.viewContext)
+            photo.latitude = lat! as NSDecimalNumber
+            photo.longitude = lon! as NSDecimalNumber
+            photo.photoUrl = photoUrls[i].absoluteString
+            guard let imageData = UIImageJPEGRepresentation(images[i]!, 1) else {
+                // handle failed conversion
+                print("jpg error")
+                return
+            }
+            photo.image = imageData
+            photo.id = Int16(i)
+            do {
+                try dataController.viewContext.save()
+            } catch {
+                print("ee")
+            }
+        }
+
     }
     
     func showPhoto(_ url: URL, _ completionHandler: @escaping (_ error: Error?, _ image: UIImage) -> Void) {
@@ -163,31 +209,21 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
 
 extension PhotoAlbumViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {
-        return photoPerDisplay
+        return photoUrls.count
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
         
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumViewCell", for: indexPath) as! PhotoAlbumViewCell
-        if photoUrls.count > 0 && indexPath[1] < photoUrls.count {
-            showPhoto(photoUrls[indexPath[1]]) {error, image in
-                cell.photoInCell.image = image
+        if images[indexPath[1]] != nil {
+            cell.photoInCell.image = self.images[indexPath[1]]
+        } else {
+            if photoUrls.count > 0 && indexPath[1] < photoUrls.count {
+                showPhoto(photoUrls[indexPath[1]]) {error, image in
+                    cell.photoInCell.image = image
+                    self.images[indexPath[1]] = image
+                }
             }
-                
-            /*URLSession.shared.dataTask(with: photoUrls[indexPath[1]]) { data, response, error in
-                performUIUpdatesOnMain {
-                    if data != nil && error == nil {
-                        cell.photoInCell.image = UIImage(data: data!)
-                    }
-                }
-                
-            }*/
-            /*let imageUrl = photoUrls[indexPath[1]]
-            if let imageData = try? Data(contentsOf: imageUrl) {
-                performUIUpdatesOnMain {
-                    cell.photoInCell.image = UIImage(data: imageData)
-                }
-            }*/
         }
         return cell
     }
