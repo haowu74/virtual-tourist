@@ -11,6 +11,6 @@ import UIKit
 // MARK: - MemeCollectionViewCell: UICollectionViewCell
 
 class PhotoAlbumViewCell: UICollectionViewCell {
-    
+    // MARK: IBOutlets
     @IBOutlet weak var photoInCell: UIImageView!
 }

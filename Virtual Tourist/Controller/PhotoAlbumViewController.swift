@@ -13,9 +13,13 @@ import CoreData
 
 class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDelegate {
 
+    // MARK: IBOutlets
+    
     @IBOutlet weak var mapView: MKMapView!
     @IBOutlet weak var albumView: UICollectionView!
     @IBOutlet weak var NewCollectionButton: UIButton!
+    
+    // MARK: IBAction
     
     @IBAction func NewCollection(_ sender: Any) {
         photoInfos.removeAll()
@@ -25,37 +29,11 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         getPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
     }
     
-    var lat: Decimal?
-    var lon: Decimal?
-    var photoInfos: [PhotoInfo] = []
-    var photoUrls: [URL] = []
-    var images: [UIImage] = []
-    let span = MKCoordinateSpanMake(0.5, 0.5)
-    let photoPerDisplay = 21
-    let photoGeoRadius = 20
-    var photosFetchedResultsController:NSFetchedResultsController<Photo>!
-    var dataController:DataController!
-    var loadedCells: Int = 0
-
-    fileprivate func setupFetchedResultsController() {
-        let fetchRequest:NSFetchRequest<Photo> = Photo.fetchRequest()
-        let predicate = NSPredicate(format: "latitude == %@ AND longitude == %@", lat! as NSDecimalNumber, lon! as NSDecimalNumber)
-        let sortDescriptor = NSSortDescriptor(key: "id", ascending: true)
-        fetchRequest.predicate = predicate
-        fetchRequest.sortDescriptors = [sortDescriptor]
-        
-        photosFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
-        photosFetchedResultsController.delegate = self
-        do {
-            try photosFetchedResultsController.performFetch()
-        } catch {
-            fatalError("The fetch could not be performed: \(error.localizedDescription)")
-        }
-    }
+    // MARK: Life Cycle
     
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
         // Do any additional setup after loading the view.
         setupFetchedResultsController()
         showMap()
@@ -85,13 +63,43 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         super.viewDidDisappear(animated)
         savePhotos()
     }
+    
+    // MARK: Properties
+    
+    var lat: Decimal?
+    var lon: Decimal?
+    var photoInfos: [PhotoInfo] = []
+    var photoUrls: [URL] = []
+    var images: [UIImage] = []
+    let span = MKCoordinateSpanMake(0.5, 0.5)
+    let photoPerDisplay = 21
+    let photoGeoRadius = 20
+    var photosFetchedResultsController:NSFetchedResultsController<Photo>!
+    var dataController:DataController!
+    var loadedCells: Int = 0
 
-    override func didReceiveMemoryWarning() {
-        super.didReceiveMemoryWarning()
-        // Dispose of any resources that can be recreated.
+    // MARK: Core Data function
+    
+    fileprivate func setupFetchedResultsController() {
+        let fetchRequest:NSFetchRequest<Photo> = Photo.fetchRequest()
+        let predicate = NSPredicate(format: "latitude == %@ AND longitude == %@", lat! as NSDecimalNumber, lon! as NSDecimalNumber)
+        let sortDescriptor = NSSortDescriptor(key: "id", ascending: true)
+        fetchRequest.predicate = predicate
+        fetchRequest.sortDescriptors = [sortDescriptor]
+        
+        photosFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
+        photosFetchedResultsController.delegate = self
+        do {
+            try photosFetchedResultsController.performFetch()
+        } catch {
+            fatalError("The fetch could not be performed: \(error.localizedDescription)")
+        }
     }
     
-    func getPhotos(lat: String, lon: String, radius: Int) {
+
+    // Private functions
+    // Get photos info from Flickr API
+    private func getPhotos(lat: String, lon: String, radius: Int) {
         FlickrClient.shared.GetPhotosFromGeo(lat, lon, radius) {(error, infos) in
             if error != nil {
                 
@@ -115,7 +123,8 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         
     }
     
-    func showMap() {
+    //Display map zooming to the selected annotation
+    private func showMap() {
         let cord = CLLocationCoordinate2D.init(latitude: Double(truncating: lat! as NSNumber), longitude: Double(truncating: lon! as NSNumber))
         let region = MKCoordinateRegionMake(cord, span)
         mapView.setCenter(cord, animated: true)
@@ -126,13 +135,14 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         mapView.addAnnotation(annotation)
     }
     
-    func getPhotoUrls() {
+    //Get Photos' url from Flickr API
+    private func getPhotoUrls() {
         for photoInfo in photoInfos {
             FlickrClient.shared.GetPhotoUrl(photoInfo) { (error, url) in
                 if error != nil {
-                    
+                    print("Error getting photo url.")
                 } else if url == nil {
-                    
+                    print("Error getting photo url.")
                 } else {
                     self.photoUrls.append(url!)
                     self.getPhoto(url!)
@@ -144,8 +154,8 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         }
     }
     
-    
-    func savePhotos() {
+    //Save photos to Core Data
+    private func savePhotos() {
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
         fetchRequest.predicate = NSPredicate(format: "latitude == %@ AND longitude == %@", lat! as NSDecimalNumber, lon! as NSDecimalNumber)
         let deleteRequest = NSBatchDeleteRequest(fetchRequest: fetchRequest)
@@ -171,14 +181,15 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
             do {
                 try dataController.viewContext.save()
             } catch {
-                print("ee")
+                print("Photo Core data save failed")
             }
             i += 1
         }
 
     }
     
-    func getPhoto(_ url: URL) {
+    //Get photo from photo's URL
+    private func getPhoto(_ url: URL) {
         let session = URLSession.shared
         var image: UIImage?
         let task = session.dataTask(with: url) { data, response, error in
@@ -197,6 +208,8 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         task.resume()
     }
 }
+
+// MARK: UICollectionViewDelegate, UICollectionViewDataSource
 
 extension PhotoAlbumViewController: UICollectionViewDelegate, UICollectionViewDataSource {
     func collectionView(_ collectionView: UICollectionView, numberOfItemsInSection section: Int) -> Int {

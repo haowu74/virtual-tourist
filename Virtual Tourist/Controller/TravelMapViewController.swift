@@ -13,58 +13,10 @@ import Foundation
 
 class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationManagerDelegate, NSFetchedResultsControllerDelegate {
 
+    // MARK: IBOutlet
     @IBOutlet weak var mapView: MKMapView!
     
-    @objc func addAnnotation(_ sender: UILongPressGestureRecognizer) {
-        if sender.state == UIGestureRecognizerState.began {
-            let point = sender.location(in: mapView)
-            let tapPoint = mapView.convert(point, toCoordinateFrom: mapView)
-            let annotation = MKPointAnnotation()
-            annotation.coordinate = tapPoint
-            mapView.addAnnotation(annotation)
-            addPin(Decimal(tapPoint.latitude), Decimal(tapPoint.longitude))
-        }
-
-    }
-    
-    func addPin(_ lat: Decimal, _ lon: Decimal) {
-        let pin = Pin(context: dataController.viewContext)
-        pin.latitude = lat as NSDecimalNumber
-        pin.longitude = lon as NSDecimalNumber
-        var i = 0
-        while i < 10000 {
-            i += 1
-        }
-        do {
-            try dataController.viewContext.save()
-        } catch {
-            print("ee")
-        }
-    }
-    
-    var locationManager: CLLocationManager!
-    
-    var dataController:DataController!
-    var selectedLon: Decimal?
-    var selectedLat: Decimal?
-    
-    var pinsFetchedResultsController:NSFetchedResultsController<Pin>!
-    
-    
-    fileprivate func setupFetchedResultsController() {
-        let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
-        let sortDescriptor = NSSortDescriptor(key: "latitude", ascending: false)
-        fetchRequest.sortDescriptors = [sortDescriptor]
-        
-        pinsFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
-        pinsFetchedResultsController.delegate = self
-        do {
-            try pinsFetchedResultsController.performFetch()
-        } catch {
-            fatalError("The fetch could not be performed: \(error.localizedDescription)")
-        }
-    }
-    
+    // MARK: Life Cycle
     override func viewDidLoad() {
         super.viewDidLoad()
         if (CLLocationManager.locationServicesEnabled())
@@ -76,7 +28,7 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
             locationManager.requestAlwaysAuthorization()
             locationManager.startUpdatingLocation()
         }
- 
+        
         //let singleTapRecognizer = UITapGestureRecognizer(target: self, action: #selector(self.foundTap(_:)))
         let longTagRecognizer = UILongPressGestureRecognizer(target: self, action: #selector(self.addAnnotation(_:)))
         
@@ -118,7 +70,7 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         mapView.addAnnotations(annotations)
         // Do any additional setup after loading the view.
     }
-
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
         // Dispose of any resources that can be recreated.
@@ -128,12 +80,38 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         super.viewWillAppear(animated)
         setupFetchedResultsController()
     }
-
+    
     override func viewDidDisappear(_ animated: Bool) {
         super.viewDidDisappear(animated)
         pinsFetchedResultsController = nil
     }
-    // MARK: - Navigation
+    
+    // MARK: Properties
+    
+    var locationManager: CLLocationManager!
+    var dataController:DataController!
+    var selectedLon: Decimal?
+    var selectedLat: Decimal?
+    var pinsFetchedResultsController:NSFetchedResultsController<Pin>!
+    
+    // MARK: CoreData function
+    
+    fileprivate func setupFetchedResultsController() {
+        let fetchRequest:NSFetchRequest<Pin> = Pin.fetchRequest()
+        let sortDescriptor = NSSortDescriptor(key: "latitude", ascending: false)
+        fetchRequest.sortDescriptors = [sortDescriptor]
+        
+        pinsFetchedResultsController = NSFetchedResultsController(fetchRequest: fetchRequest, managedObjectContext: dataController.viewContext, sectionNameKeyPath: nil, cacheName: nil)
+        pinsFetchedResultsController.delegate = self
+        do {
+            try pinsFetchedResultsController.performFetch()
+        } catch {
+            fatalError("The fetch could not be performed: \(error.localizedDescription)")
+        }
+    }
+    
+
+    // MARK: Segue
 
     override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
         // Get the new view controller using segue.destinationViewController.
@@ -145,7 +123,31 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
             photoAlbumViewController.dataController = dataController
         }
     }
+    
+    // MARK: Callback
+    
+    // Long touch on the map to add new annotation
+    @objc func addAnnotation(_ sender: UILongPressGestureRecognizer) {
+        if sender.state == UIGestureRecognizerState.began {
+            let point = sender.location(in: mapView)
+            let tapPoint = mapView.convert(point, toCoordinateFrom: mapView)
+            let annotation = MKPointAnnotation()
+            annotation.coordinate = tapPoint
+            mapView.addAnnotation(annotation)
+            addPin(Decimal(tapPoint.latitude), Decimal(tapPoint.longitude))
+        }
+    }
 
+    func addPin(_ lat: Decimal, _ lon: Decimal) {
+        let pin = Pin(context: dataController.viewContext)
+        pin.latitude = lat as NSDecimalNumber
+        pin.longitude = lon as NSDecimalNumber
+        do {
+            try dataController.viewContext.save()
+        } catch {
+            print("Pin location save failed")
+        }
+    }
 }
 
 // MARK: CLLocationManagerDelegate
@@ -161,6 +163,8 @@ extension TravelMapViewController {
         self.mapView.setRegion(region, animated: true)
     }
 }
+
+// MARK: MapView Delegate
 
 extension TravelMapViewController {
     
@@ -195,15 +199,15 @@ extension TravelMapViewController {
         UserDefaults.standard.setValue(span_lon, forKey: "span_lon")
     }
     
-
 }
+
+// MARK: Gesture Recognizer Delegate
 
 extension TravelMapViewController: UIGestureRecognizerDelegate {
     func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
         return !(touch.view is MKPinAnnotationView)
     }
     
-
 }
 
 

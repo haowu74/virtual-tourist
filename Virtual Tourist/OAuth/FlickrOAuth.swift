@@ -5,6 +5,7 @@
 //  Created by Hao Wu on 18/6/18.
 //  Copyright © 2018 S&J. All rights reserved.
 //
+//  This class was designed for used to Flickr authentication, but finally found it is not quite needed in our project. But I would like to keep it for future extension
 
 import Foundation
 

@@ -13,13 +13,14 @@ class FlickrClient {
     let searchUrl = "https://api.flickr.com/services/rest/?method=flickr.photos.search"
     let getInfoUrl = "https://api.flickr.com/services/rest/?method=flickr.photos.getInfo"
 
-    
+    // Singleton
     private init() {
 
     }
     
     static let shared = FlickrClient()
     
+    // Flickr API to get photo info for a particular geographic position
     func GetPhotosFromGeo(_ lat: String, _ lon: String, _ radius: Int, _ completionHandler: @escaping (_ error: Error?, _ photoInfos: [PhotoInfo]) -> Void) {
         let requestStr = "\(searchUrl)&api_key=\(ApiKey)&lat=\(lat)&lon=\(lon)&radius=\(radius)&format=json&nojsoncallback=1"
         var request = URLRequest(url: URL(string: requestStr)!)
@@ -57,6 +58,7 @@ class FlickrClient {
         task.resume()
     }
     
+    // Extract the Photo Url from the info returned from Flickr API
     func GetPhotoUrl(_ photoInfo: PhotoInfo, _ completionHandler: @escaping (_ error: Error?, _ url: URL?)-> Void) {
         let photoUrlString = "https://farm\(photoInfo.farm).staticflickr.com/\(photoInfo.server)/\(photoInfo.id)_\(photoInfo.secret).jpg"
         let photoUrl = URL(string: photoUrlString)
