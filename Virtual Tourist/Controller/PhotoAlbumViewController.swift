@@ -14,7 +14,6 @@ import CoreData
 class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDelegate {
 
     @IBOutlet weak var mapView: MKMapView!
-    
     @IBOutlet weak var albumView: UICollectionView!
     @IBOutlet weak var NewCollectionButton: UIButton!
     
@@ -31,7 +30,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     var photoInfos: [PhotoInfo] = []
     var photoUrls: [URL] = []
     var images: [UIImage] = []
-    
     let span = MKCoordinateSpanMake(0.5, 0.5)
     let photoPerDisplay = 21
     let photoGeoRadius = 20
@@ -194,21 +192,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
                         self.NewCollectionButton.isEnabled = true
                     }
                 }
-            }
-        }
-        task.resume()
-    }
-    
-    
-    func showPhoto(_ url: URL, _ completionHandler: @escaping (_ error: Error?, _ image: UIImage) -> Void) {
-        let session = URLSession.shared
-        var image: UIImage?
-        let task = session.dataTask(with: url) { data, response, error in
-            if data != nil && error == nil {
-                image = UIImage(data: data!)
-            }
-            performUIUpdatesOnMain {
-                completionHandler(nil, image!)
             }
         }
         task.resume()
