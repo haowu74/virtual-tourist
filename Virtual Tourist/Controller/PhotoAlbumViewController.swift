@@ -16,28 +16,28 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
     @IBOutlet weak var mapView: MKMapView!
     
     @IBOutlet weak var albumView: UICollectionView!
+    @IBOutlet weak var NewCollectionButton: UIButton!
     
     @IBAction func NewCollection(_ sender: Any) {
         photoInfos.removeAll()
         photoUrls.removeAll()
-        for i in 0..<images.count {
-            images[i] = nil
-        }
-        GetPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
+        images.removeAll()
+        NewCollectionButton.isEnabled = false
+        getPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
     }
     
     var lat: Decimal?
     var lon: Decimal?
     var photoInfos: [PhotoInfo] = []
     var photoUrls: [URL] = []
-    var images = [UIImage?](repeating: nil, count: 21)
+    var images: [UIImage] = []
     
     let span = MKCoordinateSpanMake(0.5, 0.5)
     let photoPerDisplay = 21
     let photoGeoRadius = 20
     var photosFetchedResultsController:NSFetchedResultsController<Photo>!
     var dataController:DataController!
-
+    var loadedCells: Int = 0
 
     fileprivate func setupFetchedResultsController() {
         let fetchRequest:NSFetchRequest<Photo> = Photo.fetchRequest()
@@ -65,12 +65,13 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         if count > 0 {
             for photo in photosFetchedResultsController.fetchedObjects! {
                 if let img = photo.image, let url = photo.photoUrl {
-                    images.append(UIImage(data: img))
+                    images.append(UIImage(data: img)!)
                     photoUrls.append(URL(string: url)!)
                 }
             }
         } else {
-            GetPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
+            NewCollectionButton.isEnabled = false
+            getPhotos(lat: (lat?.description)!, lon: (lon?.description)!, radius: photoGeoRadius)
         }
         
         albumView.delegate = self
@@ -92,7 +93,7 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         // Dispose of any resources that can be recreated.
     }
     
-    func GetPhotos(lat: String, lon: String, radius: Int) {
+    func getPhotos(lat: String, lon: String, radius: Int) {
         FlickrClient.shared.GetPhotosFromGeo(lat, lon, radius) {(error, infos) in
             if error != nil {
                 
@@ -136,6 +137,7 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
                     
                 } else {
                     self.photoUrls.append(url!)
+                    self.getPhoto(url!)
                 }
             }
         }
@@ -144,18 +146,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         }
     }
     
-    func showPhotos() {
-        
-    }
-    /*
-    // MARK: - Navigation
-
-    // In a storyboard-based application, you will often want to do a little preparation before navigation
-    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
-        // Get the new view controller using segue.destinationViewController.
-        // Pass the selected object to the new view controller.
-    }
-    */
     
     func savePhotos() {
         let fetchRequest = NSFetchRequest<NSFetchRequestResult>(entityName: "Photo")
@@ -166,16 +156,14 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         } catch {
             // TODO: handle the error
         }
-        
-        for i in 0..<21 {
-            if images[i] == nil {
-                break
-            }
+        var i = 0
+        for image in images {
+
             let photo = Photo(context: dataController.viewContext)
             photo.latitude = lat! as NSDecimalNumber
             photo.longitude = lon! as NSDecimalNumber
             photo.photoUrl = photoUrls[i].absoluteString
-            guard let imageData = UIImageJPEGRepresentation(images[i]!, 1) else {
+            guard let imageData = UIImageJPEGRepresentation(image, 1) else {
                 // handle failed conversion
                 print("jpg error")
                 return
@@ -187,9 +175,30 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
             } catch {
                 print("ee")
             }
+            i += 1
         }
 
     }
+    
+    func getPhoto(_ url: URL) {
+        let session = URLSession.shared
+        var image: UIImage?
+        let task = session.dataTask(with: url) { data, response, error in
+            if data != nil && error == nil {
+                image = UIImage(data: data!)
+                self.images.append(image!)
+                performUIUpdatesOnMain {
+                    self.albumView.reloadData()
+                    self.loadedCells += 1
+                    if self.loadedCells == self.photoUrls.count {
+                        self.NewCollectionButton.isEnabled = true
+                    }
+                }
+            }
+        }
+        task.resume()
+    }
+    
     
     func showPhoto(_ url: URL, _ completionHandler: @escaping (_ error: Error?, _ image: UIImage) -> Void) {
         let session = URLSession.shared
@@ -204,7 +213,6 @@ class PhotoAlbumViewController: UIViewController, NSFetchedResultsControllerDele
         }
         task.resume()
     }
-
 }
 
 extension PhotoAlbumViewController: UICollectionViewDelegate, UICollectionViewDataSource {
@@ -213,18 +221,26 @@ extension PhotoAlbumViewController: UICollectionViewDelegate, UICollectionViewDa
     }
     
     func collectionView(_ collectionView: UICollectionView, cellForItemAt indexPath: IndexPath) -> UICollectionViewCell {
-        
         let cell = collectionView.dequeueReusableCell(withReuseIdentifier: "PhotoAlbumViewCell", for: indexPath) as! PhotoAlbumViewCell
-        if images[indexPath[1]] != nil {
+        if self.images.count > indexPath[1] {
             cell.photoInCell.image = self.images[indexPath[1]]
         } else {
-            if photoUrls.count > 0 && indexPath[1] < photoUrls.count {
-                showPhoto(photoUrls[indexPath[1]]) {error, image in
-                    cell.photoInCell.image = image
-                    self.images[indexPath[1]] = image
-                }
-            }
+            cell.photoInCell.image = UIImage(named: "Placeholder")
         }
         return cell
+    }
+    
+    func collectionView(_ collectionView: UICollectionView, didSelectItemAt indexPath: IndexPath) {        
+        let alertController = UIAlertController(title: "Want to delete photo from Album?", message: nil, preferredStyle: .alert)
+        
+        alertController.addAction(UIAlertAction(title: "Delete Photo", style: .default, handler: {
+            (action:UIAlertAction!) -> Void in
+            self.photoUrls.remove(at: indexPath[1])
+            self.images.remove(at: indexPath[1])
+            self.albumView.reloadData()
+            
+        }))
+        alertController.addAction(UIAlertAction(title: "Cancel", style: .cancel, handler: nil))
+        present(alertController, animated: true, completion: nil)
     }
 }

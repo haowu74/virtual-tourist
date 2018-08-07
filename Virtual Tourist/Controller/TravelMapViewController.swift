@@ -40,7 +40,6 @@ class TravelMapViewController: UIViewController, MKMapViewDelegate, CLLocationMa
         } catch {
             print("ee")
         }
-
     }
     
     var locationManager: CLLocationManager!

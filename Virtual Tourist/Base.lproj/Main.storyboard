@@ -132,6 +132,7 @@
                         <viewLayoutGuide key="safeArea" id="HWb-h7-Q6a"/>
                     </view>
                     <connections>
+                        <outlet property="NewCollectionButton" destination="NZG-LM-Zls" id="U6b-mG-viR"/>
                         <outlet property="albumView" destination="ZXN-iN-Lfk" id="6lG-Uy-0E8"/>
                         <outlet property="mapView" destination="wWt-Mz-eaA" id="F65-Wc-QPL"/>
                     </connections>
